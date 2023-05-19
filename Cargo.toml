@@ -4,6 +4,19 @@ version = "0.1.0"
 authors = ["Amit Kumar <amrx101@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+path = "src/main.rs"
+name = "zero2prod"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+path = "src/lib.rs"
+
+
 [dependencies]
+actix-web="4"
+tokio = {version = "1", features = ["macros", "rt-multi-thread"]}
+
+[dev-dependencies]
+reqwest = "0.11"

@@ -6,11 +6,40 @@ use actix_web::web::Buf;
 use sqlx::{PgConnection, Connection, PgPool, Executor};
 use uuid::Uuid;
 use zero2prod::configuration::{DatabaseSettings, get_configuration};
+use zero2prod::telemetry::{get_subscriber, init_subscriber};
+use once_cell::sync::Lazy;
+
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let subsciber = get_subscriber("test".into(), "debug".into());
+    init_subscriber(subsciber);
+});
 
 
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool
+}
+
+async fn spawn_app() -> TestApp{
+
+    Lazy::force(&TRACING);
+
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .expect("Failed to bind random port");
+    let port = listener.local_addr().unwrap().port(); let address = format!("http://127.0.0.1:{}", port);
+    let mut configuration = get_configuration().expect("Failed to read configuration.");
+    configuration.database.database_name = Uuid::new_v4().to_string();
+
+    let connection_pool = configure_database(&configuration.database).await;
+    let server = run(listener, connection_pool.clone())
+        .expect("Failed to bind address");
+    let _ = tokio::spawn(server);
+
+    TestApp {
+        address,
+        db_pool: connection_pool,
+    }
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -32,23 +61,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
 }
 
 
-async fn spawn_app() -> TestApp{
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .expect("Failed to bind random port");
-    let port = listener.local_addr().unwrap().port(); let address = format!("http://127.0.0.1:{}", port);
-    let mut configuration = get_configuration().expect("Failed to read configuration.");
-    configuration.database.database_name = Uuid::new_v4().to_string();
 
-    let connection_pool = configure_database(&configuration.database).await;
-    let server = run(listener, connection_pool.clone())
-        .expect("Failed to bind address");
-    let _ = tokio::spawn(server);
-
-    TestApp {
-        address,
-        db_pool: connection_pool,
-    }
-}
 
 
 // #[tokio::test]

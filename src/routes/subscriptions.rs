@@ -2,6 +2,7 @@ use actix_web::{web, HttpResponse};
 use sqlx::PgPool;
 use uuid::Uuid;
 use chrono::Utc;
+use tracing::Instrument;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -10,8 +11,32 @@ pub struct FormData {
 }
 
 pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> HttpResponse{
-    log::info!("Adding '{}' '{}' as a new subscriber.", form.email, form.name);
-    log::info!("Saving new sunscriber details in the database");
+    let request_id = Uuid::new_v4();
+
+    let request_span = tracing::info_span!(
+        "Adding a new subscriber.",
+        %request_id,
+        subscriber_email=%form.email,
+        subscriber_name=%form.name
+    );
+    let _request_span_guard = request_span.enter();
+    // We do not call `.enter` on query_span!
+    // `.instrument` takes care of it at the right moments // in the query future lifetime
+    let query_span = tracing::info_span!(
+        "Saving new subscriber details in the database"
+    );
+
+
+    // tracing::info!(
+    //     "request_id {} - Adding '{}' '{}' as a new subscriber.",
+    //     request_id,
+    //     form.email,
+    //     form.name
+    // );
+    // tracing::info!(
+    //     "request_id {} - Saving new subscriber details in the database",
+    //     request_id
+    // );
 
     let res = sqlx::query!(
         r#"
@@ -20,14 +45,21 @@ pub async fn subscribe(form: web::Form<FormData>, pool: web::Data<PgPool>) -> Ht
         "#, Uuid::new_v4(), form.email, form.name, Utc::now()
     )
         .execute(pool.get_ref())
+        .instrument(query_span)
         .await;
     match res {
         Ok(_) =>{
-            log::info!("New subscriber details have been saved.");
+            // tracing::info!(
+            //     "request_id {} - New subscriber details have been saved", request_id
+            // );
             HttpResponse::Ok().finish()
         }
         Err(e) => {
-            log::error!("Failed to execute query: {:?}", e);
+            tracing::error!(
+                "request_id {} - Failed to execute query: {:?}",
+                request_id,
+                e
+            );
             HttpResponse::InternalServerError().finish()
         }
     }

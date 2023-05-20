@@ -2,6 +2,8 @@ use std::borrow::Borrow;
 use tokio::spawn;
 use zero2prod::run;
 use std::net::TcpListener;
+use sqlx::{PgConnection, Connection};
+use zero2prod::configuration::get_configuration;
 
 
 #[tokio::test]
@@ -29,25 +31,25 @@ fn spawn_app() -> String {
     format!("http://127.0.0.1:{}", port)
 }
 
-#[tokio::test]
-async fn subscribe_returns_200() {
-    let address = spawn_app();
-
-    let client = reqwest::Client::new();
-
-    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-
-    let response = client
-        .post(&format!("{}/subscriptions", address))
-        .header("Content-Type", "application/x-www-form-urlencode")
-        .body(body)
-        .send()
-        .await
-        .expect("Falied to execute request");
-
-    assert_eq!(200, response.status().as_u16());
-
-}
+// #[tokio::test]
+// async fn subscribe_returns_200() {
+//     let address = spawn_app();
+//
+//     let client = reqwest::Client::new();
+//
+//     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+//
+//     let response = client
+//         .post(&format!("{}/subscriptions", address))
+//         .header("Content-Type", "application/x-www-form-urlencode")
+//         .body(body)
+//         .send()
+//         .await
+//         .expect("Falied to execute request");
+//
+//     assert_eq!(200, response.status().as_u16());
+//
+// }
 
 #[tokio::test]
 async fn subscribe_returns_404() {
@@ -76,4 +78,33 @@ async fn subscribe_returns_404() {
                    error_message
         );
     }
+}
+
+#[tokio::test]
+async fn subscribe_returns_200_for_valid_froms(){
+    let app_address = spawn_app();
+    let configuration = get_configuration().expect("Failed to read configuratioon");
+    let conn_str = configuration.database.connection_string();
+
+    let mut connection = PgConnection::connect(&conn_str).await
+        .expect("Failed to connect to PG");
+
+    let client = reqwest::Client::new();
+
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let response = client
+        .post(&format!("{}/subscriptions", &app_address)) .header("Content-Type", "application/x-www-form-urlencoded") .body(body)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+// Assert
+    assert_eq!(200, response.status().as_u16());
+
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+        .fetch_one(&mut connection)
+        .await
+        .expect("Failed to save subscription.");
+
+    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+
 }

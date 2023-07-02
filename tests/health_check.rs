@@ -11,6 +11,27 @@ use once_cell::sync::Lazy;
 
 
 static TRACING: Lazy<()> = Lazy::new(|| {
+
+    let default_filter_level = "info".to_string();
+    let subscriber_name = "test".to_string();
+
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber(
+            subscriber_name,
+            default_filter_level,
+            std::io::stdout
+        );
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber(
+            subscriber_name,
+            default_filter_level,
+            std::io::null
+        );
+        init_subscriber(subscriber)
+    }
+
+
     let subsciber = get_subscriber("test".into(), "debug".into());
     init_subscriber(subsciber);
 });
@@ -64,79 +85,71 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
 
 
 
-// #[tokio::test]
-// async fn health_check_works() {
-//     let address = spawn_app();
-//
-//     let client = reqwest::Client::new();
-//
-//     let response = client
-//         .get(&format!("{}/health_check", address))
-//         .send()
-//         .await
-//         .expect("Failed to execute request.");
-//
-//     assert!(response.status().is_success());
-//     assert_eq!(Some(0), response.content_length());
-// }
+#[tokio::test]
+async fn health_check_works() {
+    let address = spawn_app();
 
-// fn spawn_app() -> String {
-//     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind.");
-//     let port = listener.local_addr().unwrap().port();
-//     let server = run(listener).expect("Faild to spawn server.");
-//
-//     let _ = tokio::spawn(server);
-//     format!("http://127.0.0.1:{}", port)
-// }
+    let client = reqwest::Client::new();
 
-// #[tokio::test]
-// async fn subscribe_returns_200() {
-//     let address = spawn_app();
-//
-//     let client = reqwest::Client::new();
-//
-//     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-//
-//     let response = client
-//         .post(&format!("{}/subscriptions", address))
-//         .header("Content-Type", "application/x-www-form-urlencode")
-//         .body(body)
-//         .send()
-//         .await
-//         .expect("Falied to execute request");
-//
-//     assert_eq!(200, response.status().as_u16());
-//
-// }
+    let response = client
+        .get(&format!("{}/health_check", address))
+        .send()
+        .await
+        .expect("Failed to execute request.");
 
-// #[tokio::test]
-// async fn subscribe_returns_404() {
-//
-//     let address = spawn_app();
-//     let client = reqwest::Client::new();
-//     let test_cases = vec![
-//         ("name=le%20guin", "missing the email"),
-//         ("email=ursula_le_guin%40gmail.com", "missing the name"),
-//         ("", "missing both name and email")
-//     ];
-//
-//
-//     for (invalid_body, error_message) in test_cases {
-//         // Act
-//         let response = client
-//             .post(&format!("{}/subscriptions", &address)).header("Content-Type", "application/x-www-form-urlencoded").body(invalid_body)
-//             .send()
-//             .await
-//             .expect("Failed to execute request.");
-// // Assert
-//         assert_eq!(400,
-//                    response.status().as_u16(),
-//                    // Additional customised error message on test failure
-//                    "The API did not fail with 400 Bad Request when the payload was {}.",
-//                    error_message
-//         );
-//     }
-// }
+    assert!(response.status().is_success());
+    assert_eq!(Some(0), response.content_length());
+}
+
+
+#[tokio::test]
+async fn subscribe_returns_200() {
+    let address = spawn_app();
+
+    let client = reqwest::Client::new();
+
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    let response = client
+        .post(&format!("{}/subscriptions", address))
+        .header("Content-Type", "application/x-www-form-urlencode")
+        .body(body)
+        .send()
+        .await
+        .expect("Falied to execute request");
+
+    assert_eq!(200, response.status().as_u16());
+
+}
+
+#[tokio::test]
+async fn subscribe_returns_404() {
+
+    let address = spawn_app();
+    let client = reqwest::Client::new();
+    let test_cases = vec![
+        ("name=le%20guin", "missing the email"),
+        ("email=ursula_le_guin%40gmail.com", "missing the name"),
+        ("", "missing both name and email")
+    ];
+
+
+    for (invalid_body, error_message) in test_cases {
+        // Act
+        let response = client
+            .post(&format!("{}/subscriptions", &address)).header("Content-Type", "application/x-www-form-urlencoded").body(invalid_body)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+// Assert
+        assert_eq!(400,
+                   response.status().as_u16(),
+                   // Additional customised error message on test failure
+                   "The API did not fail with 400 Bad Request when the payload was {}.",
+                   error_message
+        );
+    }
+}
 
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_froms(){

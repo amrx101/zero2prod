@@ -30,6 +30,7 @@ tracing-log = "0.1"
 secrecy = {version = "0.8", features = ["serde"]}
 tracing-actix-web = "0.7.0"
 unicode-segmentation = "1"
+claims = "0.7"
 
 [dev-dependencies]
 reqwest = "0.11"

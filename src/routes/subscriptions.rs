@@ -7,7 +7,9 @@ use unicode_segmentation::UnicodeSegmentation;
 use std::collections::HashSet;
 use actix_web::error::HttpError;
 
-use crate::domain::{NewSubscriber, SubscriberName};
+use crate::domain::subscriber_name::SubscriberName;
+use crate::domain::subscriber_email::SubscriberEmail;
+use crate::domain::new_subscriber::NewSubscriber;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -32,8 +34,14 @@ pub async fn subscribe(
         Ok(name) => name,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
+
+    let email = match SubscriberEmail::parse(form.0.email){
+        Ok(email) => email,
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
+
    let new_subscriber = NewSubscriber{
-       email: form.0.email,
+       email,
        name,
    };
     match insert_subscriber(&pool, &new_subscriber).await
@@ -57,7 +65,7 @@ pub async fn insert_subscriber(
         VALUES ($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        new_subscriber.email,
+        new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
         Utc::now()
     )

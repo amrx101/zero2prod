@@ -1,5 +1,5 @@
 //! src/domain.rs
-use core::panicking::panic;
+
 use std::collections::{HashMap, HashSet};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -12,6 +12,18 @@ pub struct NewSubscriber {
 
 
 impl SubscriberName {
+
+    pub fn inner(self) -> String {
+        self.0
+    }
+
+    pub fn inner_mut(&mut self) -> &mut str {
+        &mut self.0
+    }
+
+    pub fn inner_ref(&self) -> &str {
+        &self.0
+    }
 
     pub fn parse(s: String) -> SubscriberName{
 
@@ -29,7 +41,7 @@ impl SubscriberName {
         if is_too_long || is_empty_or_whitespace || contains_forbidden {
             panic!("{} is not a valid subscriber name.", s);
         } else {
-            Self
+            Self(s)
         }
     }
 }

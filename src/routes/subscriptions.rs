@@ -2,11 +2,7 @@ use actix_web::{web, HttpResponse};
 use sqlx::PgPool;
 use uuid::Uuid;
 use chrono::Utc;
-use tracing::Instrument;
-use unicode_segmentation::UnicodeSegmentation;
-use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
-use actix_web::error::HttpError;
 
 use crate::domain::subscriber_name::SubscriberName;
 use crate::domain::subscriber_email::SubscriberEmail;

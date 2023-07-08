@@ -1,8 +1,7 @@
 use crate::routes::{health_check, subscribe};
-use actix_web::{web, App, HttpRequest, HttpServer, Responder, HttpResponse};
+use actix_web::{web, App, HttpServer};
 use actix_web::dev::Server;
 use sqlx::PgPool;
-use actix_web::middleware::Logger;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
 

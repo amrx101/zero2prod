@@ -1,6 +1,6 @@
 //! src/domain.rs
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use unicode_segmentation::UnicodeSegmentation;
 
 #[derive(Debug)]

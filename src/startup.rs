@@ -4,6 +4,8 @@ use actix_web::dev::Server;
 use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
+use email_client::EmailClient;
+
 
 
 pub fn run(listener: TcpListener, pool: PgPool) -> Result<Server, std::io::Error> {

@@ -3,16 +3,27 @@ use secrecy::{ExposeSecret, Secret};
 #[derive(serde::Deserialize)]
 pub struct  Settings {
     pub database: DatabaseSettings,
-    pub application_port: u16
+    pub application_port: u16,
+    pub email_client: EmailClientSettings,
 }
 
 #[derive(serde::Deserialize)]
+#[derive(Debug)]
 pub struct DatabaseSettings {
     pub username: String,
     pub password: Secret<String>,
     pub port: u16,
     pub host: String,
     pub database_name: String
+}
+
+#[derive(serde::Deserialize)]
+#[derive(Debug)]
+pub struct EmailClientSettings {
+    pub sender_api_url: String,
+    pub sender: String,
+    pub authorization_token: Secret<String>,
+    pub timeout_milli: i16
 }
 
 

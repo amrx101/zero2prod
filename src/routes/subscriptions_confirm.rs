@@ -4,7 +4,7 @@ use actix_web::{web, HttpResponse};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, serde::Deserialize)]
 pub struct Parameters {
     subscription_token: String,
 }
@@ -23,16 +23,15 @@ pub async fn confirm(parameters: web::Query<Parameters>, pool: web::Data<PgPool>
             if confirm_subscriber(&pool, subscriber_id).await.is_err() {
                 return HttpResponse::InternalServerError().finish();
             }
+            HttpResponse::Ok().finish()
         }
     }
-
-    HttpResponse::Ok().finish()
 }
 
 #[tracing::instrument(name = "Mark subscriber as confirmed", skip(subscriber_id, pool))]
 pub async fn confirm_subscriber(pool: &PgPool, subscriber_id: Uuid) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        r#"UPDATE subscriptions SET status = 'confirmed" WHERE id = $1"#,
+        r#"UPDATE subscriptions SET status = 'confirmed' WHERE id = $1"#,
         subscriber_id
     )
     .execute(pool)

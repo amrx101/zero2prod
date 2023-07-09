@@ -2,6 +2,7 @@ use actix_web::{trace, web, HttpResponse};
 use chrono::Utc;
 use sqlx::PgPool;
 use std::convert::{TryFrom, TryInto};
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::domain::new_subscriber::NewSubscriber;
@@ -47,7 +48,7 @@ pub async fn subscribe(
     if insert_subscriber(&pool, &new_subscriber).await.is_err() {
         return HttpResponse::InternalServerError().finish();
     }
-    if send_confirmation_email(&email_client, new_subscriber, &base_url.0)
+    if send_confirmation_email(&email_client, new_subscriber, &base_url, "myToken")
         .await
         .is_err()
     {
@@ -57,20 +58,33 @@ pub async fn subscribe(
 }
 #[tracing::instrument(
     name = "Send a confimation email to a new subscriber",
-    skip(email_client, new_subscriber)
+    skip(email_client, new_subscriber, base_url, subscription_token)
 )]
 
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
-    base_url: &str,
+    base_url: &Arc<ApplicationBaseUrl>,
+    subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
+    println!("{:?}", subscription_token);
     let confirmation_link = format!(
-        "{}/subscriptions/confirm?subscription_token=myToken",
-        base_url
+        "{}/subscriptions/confirm?subscription_token={}",
+        base_url.0, subscription_token
     );
+
+    let plain_body = format!(
+        "Welcome to our newsletter!\nVisit {} to confirm your subscription.",
+        confirmation_link
+    );
+
+    let html_body = format!(
+        "Welcome to our newsletter!<br />lick <a href=\"{}\">here</a> to confirm your subscription.",
+        confirmation_link
+    );
+
     email_client
-        .send_email(new_subscriber.email, "Welcome", "Welcome", "Welcome")
+        .send_email(new_subscriber.email, "Welcome", &html_body, &plain_body)
         .await
 }
 

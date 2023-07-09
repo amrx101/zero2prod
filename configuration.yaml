@@ -14,3 +14,4 @@ email_client:
 application:
   port: 8080
   host: "127.0.0.1"
+  base_url: "http://127.0.0.1"

@@ -5,6 +5,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sqlx::{PgPool, Postgres, Transaction};
 use std::convert::{TryFrom, TryInto};
+use std::error::Error;
 use std::fmt::Formatter;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -15,7 +16,6 @@ use crate::domain::subscriber_name::SubscriberName;
 use crate::email_client::EmailClient;
 use crate::startup::ApplicationBaseUrl;
 
-#[derive(Debug)]
 pub struct StoreTokenError(sqlx::Error);
 
 #[derive(serde::Deserialize)]
@@ -31,6 +31,31 @@ impl std::fmt::Display for StoreTokenError {
             "A database error was encountered while trying to store a subscription token."
         )
     }
+}
+
+impl std::error::Error for StoreTokenError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
+impl std::fmt::Debug for StoreTokenError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f);
+    }
+}
+
+fn error_chain_fmt(
+    e: &impl std::error::Error,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    writeln!(f, "{}\n", e)?;
+    let mut current = e.source();
+    while let Some(cause) = current {
+        writeln!(f, "Caused by:\n\t{}", cause)?;
+        current = cause.source();
+    }
+    Ok(())
 }
 
 impl TryFrom<FormData> for NewSubscriber {
@@ -74,12 +99,7 @@ pub async fn subscribe(
 
     let subscriber_token = generate_subscription_token();
 
-    if store_token(&mut transaction, subscriber_id, &subscriber_token)
-        .await
-        .is_err()
-    {
-        return HttpResponse::InternalServerError().finish();
-    }
+    store_token(&mut transaction, subscriber_id, &subscriber_token).await?;
     if send_confirmation_email(&email_client, new_subscriber, &base_url, &subscriber_token)
         .await
         .is_err()

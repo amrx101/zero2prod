@@ -1,10 +1,11 @@
 use actix_web::web::Buf;
-use actix_web::{trace, web, HttpResponse};
+use actix_web::{trace, web, HttpResponse, ResponseError};
 use chrono::Utc;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use sqlx::{PgPool, Postgres, Transaction};
 use std::convert::{TryFrom, TryInto};
+use std::fmt::Formatter;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -14,10 +15,22 @@ use crate::domain::subscriber_name::SubscriberName;
 use crate::email_client::EmailClient;
 use crate::startup::ApplicationBaseUrl;
 
+#[derive(Debug)]
+pub struct StoreTokenError(sqlx::Error);
+
 #[derive(serde::Deserialize)]
 pub struct FormData {
     email: String,
     name: String,
+}
+
+impl std::fmt::Display for StoreTokenError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "A database error was encountered while trying to store a subscription token."
+        )
+    }
 }
 
 impl TryFrom<FormData> for NewSubscriber {
@@ -49,11 +62,6 @@ pub async fn subscribe(
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
 
-    // let subscriber_id = match insert_subscriber(&pool, &new_subscriber) {
-    //     Ok(subscriber_id) => subscriber_id,
-    //     Err(_) => return HttpResponse::InternalServerError().finish(),
-    // };
-
     let mut transaction = match pool.begin().await {
         Ok(transaction) => transaction,
         Err(_) => return HttpResponse::InternalServerError().finish(),
@@ -65,6 +73,13 @@ pub async fn subscribe(
     };
 
     let subscriber_token = generate_subscription_token();
+
+    if store_token(&mut transaction, subscriber_id, &subscriber_token)
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
+    }
     if send_confirmation_email(&email_client, new_subscriber, &base_url, &subscriber_token)
         .await
         .is_err()

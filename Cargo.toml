@@ -38,6 +38,7 @@ anyhow = "1.0.71"
 thiserror = "1.0.43"
 base64 = { version = "0.13.1" }
 sha3 = "0.9"
+argon2 = { version = "0.4", features = ["std"] }
 
 [dev-dependencies]
 reqwest = "0.11"

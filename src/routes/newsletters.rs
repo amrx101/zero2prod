@@ -8,6 +8,7 @@ use anyhow::{anyhow, Context};
 use config::ValueKind::String;
 use reqwest::header::HeaderMap;
 use serde::de::Unexpected::Str;
+use sha3::Digest;
 use sqlx::PgPool;
 use std::fmt::Formatter;
 use tracing_subscriber::fmt::format;

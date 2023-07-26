@@ -87,6 +87,35 @@ fn basic_authenticate(headers: &HeaderMap) -> Result<Credentials, anyhow::Error>
     Ok(Credentials { username, password })
 }
 
+async fn validate_credentials(
+    credentials: Credentials,
+    pool: &PgPool,
+) -> Result<uuid::Uuid, PublishError> {
+    let user_id: Option<_> = sqlx::query!(
+        r#"
+            SELECT user_id FROM users WHERE username = $1 AND password = S2
+        "#,
+        credentials.username,
+        credentials.password
+    )
+    .fetch_optiona(pool)
+    .await
+    .context("FFailed to pefrom a query with creds")
+    .map_error(PublishError::UnexpectedError)?;
+
+    user_id
+        .map(|row| row.user_id)
+        .ok_or_else(|| anyhow::anyhow!("Invalid username and password"))
+        .map_err(PublishError::AuthError)
+}
+
+#[tracing::instrument(
+    name= "Publish a news letter",
+    skip(body, pool, email_client, request),
+    fields(username=tracing::field::Empty,
+    user_id=tracing::field::Empty)
+)]
+
 pub async fn publish_newsletter(
     body: web::Json<BodyData>,
     pool: web::Data<PgPool>,
@@ -94,6 +123,9 @@ pub async fn publish_newsletter(
     request: web::HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
     let credentials = basic_authenticate(request.header()).map_err(PublishError::AuthError)?;
+    tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
+    let user_id = validate_credentials(credentials, &pool).await?;
+    tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
     let subscribers = get_confirmed_subscribers(&pool).await?;
     for subscriber in subscribers {
         match subscriber {

@@ -10,6 +10,7 @@ use reqwest::header::HeaderMap;
 use serde::de::Unexpected::Str;
 use sqlx::PgPool;
 use std::fmt::Formatter;
+use tracing_subscriber::fmt::format;
 
 #[derive(serde::Deserialize)]
 pub struct BodyData {
@@ -91,12 +92,15 @@ async fn validate_credentials(
     credentials: Credentials,
     pool: &PgPool,
 ) -> Result<uuid::Uuid, PublishError> {
+    let password_hash = sha3::Sha3_256::digest(&credentials.password.as_bytes());
+    let password_hash = format!("{:x}", password_hash);
+
     let user_id: Option<_> = sqlx::query!(
         r#"
-            SELECT user_id FROM users WHERE username = $1 AND password = S2
+            SELECT user_id FROM users WHERE username = $1 AND password_hash = S2
         "#,
         credentials.username,
-        credentials.password
+        password_hash
     )
     .fetch_optiona(pool)
     .await
